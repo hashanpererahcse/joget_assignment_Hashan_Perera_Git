@@ -44,10 +44,6 @@ resource "aws_db_instance" "mysql" {
   skip_final_snapshot     = true
   backup_retention_period = 7
 
-  lifecycle {
-    prevent_destroy = true
-  }
-
   tags = {
     Name = "${var.project_name}-rds"
   }

@@ -1,4 +1,3 @@
-# ALB Security Group — allows inbound HTTP from anywhere
 resource "aws_security_group" "alb_sg" {
   name        = "${var.project_name}-alb-sg"
   description = "Allow HTTP to ALB"
@@ -23,7 +22,6 @@ resource "aws_security_group" "alb_sg" {
   }
 }
 
-# EC2 Security Group — allows traffic from ALB only on port 8080
 resource "aws_security_group" "ec2_sg" {
   name        = "${var.project_name}-ec2-sg"
   description = "Allow 8080 from ALB and SSH from admin IP"
@@ -40,7 +38,7 @@ resource "aws_security_group" "ec2_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # Replace with your admin IP
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -55,7 +53,6 @@ resource "aws_security_group" "ec2_sg" {
   }
 }
 
-# IAM Role for EC2 — access CloudWatch
 resource "aws_iam_role" "ec2_role" {
   name = "${var.project_name}-ec2-role"
 
@@ -71,14 +68,13 @@ resource "aws_iam_role" "ec2_role" {
   })
 }
 
-# Attach CloudWatch Agent permissions
 resource "aws_iam_policy_attachment" "ec2_cw_attach" {
   name       = "${var.project_name}-cw-policy"
   roles      = [aws_iam_role.ec2_role.name]
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
-# IAM Instance Profile
+
 resource "aws_iam_instance_profile" "ec2_profile" {
   name = "${var.project_name}-ec2-profile"
   role = aws_iam_role.ec2_role.name
