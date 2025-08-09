@@ -16,7 +16,7 @@ resource "aws_vpc" "this" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
-  tags = { Name = "${var.project}-vpc" }
+  tags                 = { Name = "${var.project}-vpc" }
 }
 
 resource "aws_internet_gateway" "igw" {
@@ -223,7 +223,7 @@ resource "aws_secretsmanager_secret" "db" {
 }
 
 resource "aws_secretsmanager_secret_version" "db_value" {
-  secret_id     = aws_secretsmanager_secret.db.id
+  secret_id = aws_secretsmanager_secret.db.id
   secret_string = jsonencode({
     username = var.db_username
     password = random_password.db_password.result
@@ -245,7 +245,7 @@ resource "aws_db_instance" "mysql" {
   identifier               = "${var.project}-mysql"
   engine                   = "mysql"
   engine_version           = "8.0"
-  instance_class           = "db.t2.micro" # changed to t2.micro for cost efficiency - Free Tier eligible
+  instance_class           = "db.t3.micro" 
   allocated_storage        = 20
   db_name                  = var.db_name
   username                 = var.db_username
@@ -259,12 +259,12 @@ resource "aws_db_instance" "mysql" {
   publicly_accessible      = false
   skip_final_snapshot      = true
   apply_immediately        = true
-  tags = { Name = "${var.project}-rds" }
+  tags                     = { Name = "${var.project}-rds" }
 }
 
 
 resource "aws_secretsmanager_secret_version" "db_value_with_host" {
-  secret_id     = aws_secretsmanager_secret.db.id
+  secret_id = aws_secretsmanager_secret.db.id
   secret_string = jsonencode({
     username = var.db_username
     password = random_password.db_password.result
@@ -382,10 +382,10 @@ locals {
     cat <<TXT > /tmp/index.html
     <html><body>
     <h1>Java App Node: $(hostname)</h1>
-    <p>DB Host: ${DB_HOST}</p>
-    <p>DB Name: ${DB_NAME}</p>
+    <p>DB Host: $${DB_HOST}</p>
+    <p>DB Name: $${DB_NAME}</p>
     </body></html>
-    while true; do { echo -e "HTTP/1.1 200 OK\\n\\n"; cat /tmp/index.html; } | nc -l -p 8080 -q 1; done
+    while true; do { echo -e "HTTP/1.1 200 OK\n\n"; cat /tmp/index.html; } | nc -l -p 8080 -q 1; done
     APP
     chmod +x /opt/app.sh
 
