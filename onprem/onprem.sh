@@ -43,20 +43,17 @@ configure_mysql() {
   sudo systemctl restart mysql
   sleep 5
 
-  # Set root password
   echo -e "${YELLOW}Setting MySQL root password...${NC}"
   sudo mysql -uroot -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '$MYSQL_ROOT_PASSWORD'; FLUSH PRIVILEGES;" 2>/dev/null || \
   sudo mysql -uroot -e "UPDATE mysql.user SET plugin='mysql_native_password', authentication_string=PASSWORD('$MYSQL_ROOT_PASSWORD') WHERE User='root'; FLUSH PRIVILEGES;"
 
-  # Create Joget database
   sudo mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS jogetdb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 }
 
-# --- Joget Installation ---
+# Joget Installation
 install_joget() {
   echo -e "${BLUE}Installing Joget...${NC}"
   
-  # Create dedicated user
   if ! id "$JOGET_USER" &>/dev/null; then
     sudo useradd -r -m -d "$INSTALL_DIR" "$JOGET_USER"
   fi
@@ -64,7 +61,6 @@ install_joget() {
   sudo mkdir -p "$INSTALL_DIR"
   sudo chown "$JOGET_USER:$JOGET_USER" "$INSTALL_DIR"
 
-  # Download and extract Joget
   sudo -u "$JOGET_USER" bash <<EOF
 cd "$INSTALL_DIR"
 [ -f joget.tar.gz ] || curl -L "$JOGET_URL" -o joget.tar.gz
@@ -73,7 +69,6 @@ cd joget-linux-*
 chmod +x *.sh
 EOF
 
-  # Create systemd service
   JOGET_HOME="$(ls -d "$INSTALL_DIR"/joget-linux-*)"
   cat <<SERVICE | sudo tee /etc/systemd/system/joget.service >/dev/null
 [Unit]
@@ -98,9 +93,7 @@ SERVICE
   sudo systemctl enable joget
 }
 
-# --- Main Execution ---
 main() {
-  # Generate or load configuration
   if [ -f "$CONFIG_FILE" ]; then
     echo -e "${YELLOW}Using existing configuration${NC}"
     source "$CONFIG_FILE"
@@ -122,9 +115,8 @@ CONFIG
   configure_mysql
   install_joget
 
-  # Start services
   sudo systemctl start joget
-  sleep 10 # Wait for Joget to initialize
+  sleep 10 
 
   # Change default admin password
   echo -e "${BLUE}Securing Joget admin account...${NC}"
@@ -135,17 +127,14 @@ CONFIG
     echo -e "Please change it manually at: http://$(hostname -I | awk '{print $1}'):8080/jw"
   fi
 
-  # Cleanup
   sudo rm -f "$INSTALL_DIR/joget.tar.gz"
 
-  # Completion message
   echo -e "\n${GREEN}INSTALLATION COMPLETE${NC}"
   echo -e "\n${CYAN}ACCESS INFORMATION${NC}"
   echo -e "URL: http://$(hostname -I | awk '{print $1}'):8080/jw"
   echo -e "Admin username: admin"
   echo -e "Admin password: $JOGET_ADMIN_PASSWORD"
   echo -e "\nMySQL root password: $MYSQL_ROOT_PASSWORD"
-  echo -e "\n${YELLOW}IMPORTANT: Save these credentials in a secure location${NC}"
 }
 
 main "$@"
