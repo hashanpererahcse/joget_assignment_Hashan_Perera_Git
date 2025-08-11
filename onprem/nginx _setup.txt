@@ -1,0 +1,35 @@
+
+sudo apt install -y nginx
+sudo systemctl start nginx
+sudo systemctl enable nginx
+
+sudo nano /etc/nginx/sites-available/joget
+
+
+
+server {
+    listen 80;
+    server_name 175.157.225.X;
+
+    location / {
+        proxy_pass http://localhost:8080/jw;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # Static file caching
+    location ~ ^/jw/(.*\.(js|css|png|jpg|ico))$ {
+        alias /opt/joget/joget-linux-*/apache-tomcat-*/webapps/jw/$1;
+        expires 30d;
+    }
+}
+
+
+sudo ln -s /etc/nginx/sites-available/joget /etc/nginx/sites-enabled/
+sudo nginx -t  # Test config
+sudo systemctl restart nginx
+
+
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tc
