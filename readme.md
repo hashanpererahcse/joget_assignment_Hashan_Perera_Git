@@ -50,18 +50,55 @@ Automates the setup of Joget Workflow on Ubuntu with MySQL
 
 ## [- AWS Cloud Infrastructure – Key Components -]()
 
-* **VPC** : With 2 Public and 2 Private Subnets (across 2 AZs)
-* **Web Layer** :
-  * 2 x EC2 (t3.micro) with Apache and Java App
-  * ALB distributes traffic
-* **Database Layer** :
-  * RDS for MySQL (db.t3.micro), private subnet
-* **NAT Gateway** : Enables outbound internet from private subnets
-* **IAM** : Least-privilege roles for EC2, RDS
-* **Security Groups** :
-  * ALB → EC2: HTTP/HTTPS
-  * EC2 → RDS: MySQL only
-  * No public access to RDS or private EC2
+What this deploys
+
+* 1x VPC with 2 public + 2 private subnets (across 2 AZs)
+* Internet Gateway, single NAT Gateway (to keep costs down)
+* Application Load Balancer (public) on port 80
+* Auto Scaling Group (desired=2) for web servers (private subnets)
+  * User data installs Apache (httpd) and shows a simple index page
+* Bastion host (public subnet) for SSH access to the private instances
+* Tight security groups (ALB → Web on 80, Bastion → Web on 22; SSH to Bastion only from your IP)
+
+How to deploy
+
+```
+terraform init
+terraform validate
+terraform plan -out tfplan \
+  -var "project_name=hybrid-sample" \
+  -var "region=ap-south-1" \
+  -var "allowed_ssh_cidr=<YOUR_PUBLIC_IP/32>" \
+  -var "ssh_key_name=<YOUR_EC2_KEYPAIR_NAME>"
+
+terraform apply "tfplan"
+```
+
+### Test
+
+* After apply, grab the `<span>alb_dns_name</span>` output and open `<span>http://<alb_dns_name></span>`.
+* You should see an Apache page that echoes the instance ID and AZ so you can tell the two nodes apart when refreshing.
+* SSH to the bastion:
+
+  ```
+  ssh -i <path-to-private-key.pem> ec2-user@<bastion_public_ip>
+  ```
+
+  From the bastion you can reach the private web instances on port 22/80.
+
+### Teardown
+
+```
+terraform destroy
+```
+
+> Note: NAT Gateways are billed by the hour + data. Destroy when done.
+
+### Assumptions
+
+* Web servers are in private subnets; ALB and Bastion are public.
+* One NAT Gateway shared by both private subnets (cost-optimized).
+* Amazon Linux 2 AMI.
 
 ## [- Deployment -]()
 
