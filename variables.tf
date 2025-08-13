@@ -37,3 +37,33 @@ variable "ssh_key_name" {
   description = "Existing EC2 key pair name"
   type        = string
 }
+
+variable "db_name" {
+  description = "Joget DB name"
+  type        = string
+  default     = "jwdb"
+}
+
+variable "db_username" {
+  description = "DB master username"
+  type        = string
+  default     = "jogetadmin"
+}
+
+variable "db_password" {
+  description = "DB master password"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_instance_class" {
+  description = "RDS instance class"
+  type        = string
+  default     = "db.t3.micro"
+}
+
+variable "db_allocated_storage" {
+  description = "RDS storage (GiB)"
+  type        = number
+  default     = 20
+}

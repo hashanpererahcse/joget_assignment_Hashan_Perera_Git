@@ -40,8 +40,8 @@ resource "aws_security_group" "web_sg" {
 resource "aws_security_group_rule" "web_http_from_alb" {
   type                     = "ingress"
   security_group_id        = aws_security_group.web_sg.id
-  from_port                = 80
-  to_port                  = 80
+  from_port                = 8080
+  to_port                  = 8080
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.alb_sg.id
 }
@@ -77,4 +77,27 @@ resource "aws_security_group_rule" "web_ssh_from_bastion" {
   to_port                  = 22
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.bastion_sg.id
+}
+
+# RDS SG: allow 3306 only from web_sg
+resource "aws_security_group" "rds_sg" {
+  name        = "${var.project_name}-rds-sg"
+  description = "RDS MySQL SG"
+  vpc_id      = aws_vpc.this.id
+
+  ingress {
+    description     = "MySQL from web"
+    from_port       = 3306
+    to_port         = 3306
+    protocol        = "tcp"
+    security_groups = [aws_security_group.web_sg.id]
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
 }

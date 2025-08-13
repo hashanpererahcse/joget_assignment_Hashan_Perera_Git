@@ -65,13 +65,8 @@ How to deploy
 ```
 terraform init
 terraform validate
-terraform plan -out tfplan \
-  -var "project_name=hybrid-sample" \
-  -var "region=ap-south-1" \
-  -var "allowed_ssh_cidr=<YOUR_PUBLIC_IP/32>" \
-  -var "ssh_key_name=<YOUR_EC2_KEYPAIR_NAME>"
-
-terraform apply "tfplan"
+terraform plan
+terraform apply
 ```
 
 ### Test
