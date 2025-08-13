@@ -14,6 +14,8 @@ This project is a hybrid cloud proof-of-concept that simulates an on-premise env
 - **Automation**: Terraform IaC, optional Ansible for app setup
 - **Monitoring & DR**: CloudWatch monitoring and RDS snapshot-based DR
 
+LIVE URL : http://joget-assignment-alb-1506092433.ap-south-1.elb.amazonaws.com/jw/web/login
+
 ---
 
 ## [Architecture Diagram]()
