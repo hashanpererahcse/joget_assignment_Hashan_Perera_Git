@@ -1,0 +1,235 @@
+- hosts: web
+  become: yes
+  gather_facts: false
+
+  vars:
+    joget_url: "https://drive.usercontent.google.com/download?id=1sXTRXAXz-i4_szr3fXiJwjAEp0sNfoFr&export=download&confirm=t&uuid=881e9b97-7277-4c3e-8ba6-6df3886f9106"
+    cj_ver: "8.4.0"
+    install_dir: "/opt/joget"
+
+  pre_tasks:
+    # Ensure Python 3 so Ansible modules work
+    - name: Bootstrap Python 3
+      raw: "command -v python3 >/dev/null 2>&1 || (command -v dnf >/dev/null 2>&1 && dnf install -y python3 || yum install -y python3)"
+      changed_when: false
+
+    - name: Gather facts
+      setup:
+
+  tasks:
+    - name: Prerequisites
+      ansible.builtin.package:
+        name:
+          - java-11-amazon-corretto-headless
+          - curl
+          - tar
+          - gzip
+          - unzip
+          - mariadb
+          - httpd
+        state: present
+
+    - name: Ensure install dir
+      ansible.builtin.file:
+        path: "{{ install_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Download Joget tarball
+      ansible.builtin.get_url:
+        url: "{{ joget_url }}"
+        dest: "{{ install_dir }}/joget.tar.gz"
+        mode: "0644"
+        force: yes
+
+    - name: Extract Joget (strip top folder if present)
+      ansible.builtin.unarchive:
+        src: "{{ install_dir }}/joget.tar.gz"
+        dest: "{{ install_dir }}"
+        remote_src: yes
+        extra_opts: ["--strip-components=1"]
+      notify: restart joget
+
+    # ---- Robust Tomcat path detection & symlink ----
+    - name: Locate Tomcat directory under install_dir
+      ansible.builtin.find:
+        paths: "{{ install_dir }}"
+        patterns: "apache-tomcat*"
+        file_type: directory
+        recurse: yes
+        depth: 4
+      register: tomcat_dirs
+
+    - name: Fail if Tomcat directory not found
+      ansible.builtin.fail:
+        msg: "Could not find an apache-tomcat* directory under {{ install_dir }}. Check the tarball contents."
+      when: (tomcat_dirs.matched | int) == 0
+
+    - name: Symlink {{ install_dir }}/apache-tomcat -> detected Tomcat dir
+      ansible.builtin.file:
+        src: "{{ (tomcat_dirs.files | map(attribute='path') | list)[0] }}"
+        dest: "{{ install_dir }}/apache-tomcat"
+        state: link
+        force: true
+      notify: restart joget
+
+    - name: Ensure Tomcat scripts are executable
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: file
+        mode: "0755"
+      loop:
+        - "{{ install_dir }}/apache-tomcat/bin/startup.sh"
+        - "{{ install_dir }}/apache-tomcat/bin/shutdown.sh"
+        - "{{ install_dir }}/apache-tomcat/bin/catalina.sh"
+      ignore_errors: true
+
+    # ---- MySQL Connector/J (download JAR directly from Maven Central) ----
+    - name: Ensure Tomcat lib dir exists
+      ansible.builtin.file:
+        path: "{{ install_dir }}/apache-tomcat/lib"
+        state: directory
+        mode: "0755"
+
+    - name: Download mysql-connector-j.jar from Maven Central
+      ansible.builtin.get_url:
+        url: "https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/{{ cj_ver }}/mysql-connector-j-{{ cj_ver }}.jar"
+        dest: "{{ install_dir }}/apache-tomcat/lib/mysql-connector-j.jar"
+        mode: "0644"
+      register: jar_dl
+      retries: 5
+      delay: 3
+      until: jar_dl is succeeded
+      notify: restart joget
+
+    # ---- Database wiring ----
+    - name: Ensure DB exists (safe if already there)
+      ansible.builtin.shell: >
+        mysql -h {{ rds_host }} -u {{ db_user }} -p'{{ db_pass }}'
+        -e "CREATE DATABASE IF NOT EXISTS \`{{ db_name }}\`
+            DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+      changed_when: false
+
+    - name: Write wflow.properties
+      ansible.builtin.copy:
+        dest: "{{ install_dir }}/wflow.properties"
+        mode: "0644"
+        content: |
+          workflowDriver=com.mysql.cj.jdbc.Driver
+          workflowUrl=jdbc:mysql://{{ rds_host }}:3306/{{ db_name }}?useUnicode=true&characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+          workflowUser={{ db_user }}
+          workflowPassword={{ db_pass }}
+          currentProfile=default
+          setup=true
+      notify: restart joget
+
+    # ---- Detect JAVA_HOME dynamically ----
+    - name: Detect JAVA_HOME from current java
+      ansible.builtin.shell: "dirname $(dirname $(readlink -f $(command -v java)))"
+      args: { executable: /bin/bash }
+      register: java_home
+      changed_when: false
+
+    # ---- systemd service ----
+    - name: Install systemd unit for Joget (with correct JAVA_HOME)
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/joget.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Joget (Tomcat) service
+          After=network.target
+          [Service]
+          Type=forking
+          Environment=JAVA_HOME={{ java_home.stdout }}
+          Environment=CATALINA_BASE={{ install_dir }}/apache-tomcat
+          Environment=CATALINA_HOME={{ install_dir }}/apache-tomcat
+          Environment=CATALINA_PID={{ install_dir }}/apache-tomcat/temp/tomcat.pid
+          ExecStart={{ install_dir }}/apache-tomcat/bin/startup.sh
+          ExecStop={{ install_dir }}/apache-tomcat/bin/shutdown.sh
+          SuccessExitStatus=143
+          Restart=on-failure
+          [Install]
+          WantedBy=multi-user.target
+      notify: restart joget
+
+    - name: Ensure joget is enabled and started
+      ansible.builtin.systemd:
+        name: joget
+        daemon_reload: yes
+        enabled: yes
+        state: started
+
+    - name: Wait until Joget responds on 8080 (/jw/)
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:8080/jw/"
+        status_code: [200, 301, 302]
+        return_content: no
+        timeout: 10
+      register: joget_ready
+      retries: 30
+      delay: 5
+      until: joget_ready is succeeded
+
+    # ---- Apache reverse proxy on :80 -> 127.0.0.1:8080 ----
+    - name: Check loaded Apache modules
+      ansible.builtin.command: httpd -M
+      register: httpd_modules
+      changed_when: false
+      failed_when: false
+
+    - name: Ensure proxy modules are loaded if missing
+      ansible.builtin.copy:
+        dest: /etc/httpd/conf.modules.d/99-proxy-joget.load
+        mode: "0644"
+        content: |
+          LoadModule proxy_module modules/mod_proxy.so
+          LoadModule proxy_http_module modules/mod_proxy_http.so
+      when: httpd_modules.stdout is not defined or
+            ('proxy_module' not in httpd_modules.stdout or
+             'proxy_http_module' not in httpd_modules.stdout)
+
+    - name: Remove any custom listen files that may conflict
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/httpd/conf.d/listen-80.conf
+        - /etc/httpd/conf.d/listen-8080.conf
+
+    - name: Set ServerName to avoid warnings
+      ansible.builtin.copy:
+        dest: /etc/httpd/conf.d/servername.conf
+        mode: "0644"
+        content: "ServerName localhost\n"
+
+    - name: Create reverse proxy vhost (:80 -> :8080)
+      ansible.builtin.copy:
+        dest: /etc/httpd/conf.d/joget-proxy.conf
+        mode: "0644"
+        content: |
+          <VirtualHost *:80>
+              ServerName localhost
+              ProxyPreserveHost On
+              ProxyPass / http://127.0.0.1:8080/ retry=0 timeout=5
+              ProxyPassReverse / http://127.0.0.1:8080/
+          </VirtualHost>
+
+    - name: Validate Apache config
+      ansible.builtin.shell: httpd -t
+      register: httpdtest
+      changed_when: false
+
+    - name: Start/enable Apache
+      ansible.builtin.service:
+        name: httpd
+        state: restarted
+        enabled: yes
+
+  handlers:
+    - name: restart joget
+      ansible.builtin.systemd:
+        name: joget
+        daemon_reload: yes
+        enabled: yes
+        state: restarted

@@ -40,8 +40,8 @@ resource "aws_security_group" "web_sg" {
 resource "aws_security_group_rule" "web_http_from_alb" {
   type                     = "ingress"
   security_group_id        = aws_security_group.web_sg.id
-  from_port                = 8080
-  to_port                  = 8080
+  from_port                = 80
+  to_port                  = 80
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.alb_sg.id
 }
