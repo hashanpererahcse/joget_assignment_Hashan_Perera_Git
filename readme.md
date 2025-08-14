@@ -1,6 +1,8 @@
 # Hybrid Cloud Infrastructure – Cloud Engineer Assignment
 
-This project is a hybrid cloud proof-of-concept that simulates an on-premise environment and partially migrates a legacy Java web application (hosted with Apache and MySQL) to AWS. The solution leverages Terraform for IaC, AWS for scalable deployment, and Bash for on-prem configuration automation.
+This project is a hybrid cloud proof-of-concept that simulates an on-premise environment and partially migrates a legacy Java web application (hosted with Apache and MySQL) to AWS.
+
+##### **LIVE URL :** http://joget-assignment-alb-1506092433.ap-south-1.elb.amazonaws.com/jw/web/login
 
 ## [Project Overview]()
 
@@ -13,10 +15,6 @@ This project is a hybrid cloud proof-of-concept that simulates an on-premise env
 - **Security**: Segmented network with Security Groups and IAM roles
 - **Automation**: Terraform IaC, optional Ansible for app setup
 - **Monitoring & DR**: CloudWatch monitoring and RDS snapshot-based DR
-
-LIVE URL : http://joget-assignment-alb-1506092433.ap-south-1.elb.amazonaws.com/jw/web/login
-
----
 
 ## [Architecture Diagram]()
 
@@ -41,7 +39,7 @@ Automates the setup of Joget Workflow on Ubuntu with MySQL
 - Creating a dedicated jogetdb database
 - Starts and enables services
 
-##### - Steps for the implementation:
+##### - *[Steps for the implementation:]()*
 
 - make script executable **chmod +x onprem.sh**
 - then run with **sudo sh onprem.sh**
@@ -49,6 +47,10 @@ Automates the setup of Joget Workflow on Ubuntu with MySQL
 ##### - Nginx Setup:
 
 - **nginx _setup.txt** includes the nginx configurations
+
+---
+
+
 
 ## [- AWS Cloud Infrastructure – Key Components -]()
 
