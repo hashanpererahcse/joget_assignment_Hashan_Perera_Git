@@ -5,6 +5,10 @@ resource "aws_launch_template" "web" {
   key_name               = var.ssh_key_name
   vpc_security_group_ids = [aws_security_group.web_sg.id]
   update_default_version = true
+  iam_instance_profile {
+  name = aws_iam_instance_profile.web.name
+}
+
 
   tag_specifications {
     resource_type = "instance"
@@ -53,7 +57,7 @@ resource "aws_lb_target_group" "web_tg" {
   name_prefix = "${substr(var.project_name, 0, 4)}-"
   target_type = "instance"
   vpc_id      = aws_vpc.this.id
-  port        = 80           # was 8080
+  port        = 80 # was 8080
   protocol    = "HTTP"
 
   health_check {

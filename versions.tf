@@ -7,3 +7,8 @@ terraform {
     }
   }
 }
+
+variable "alert_email" {
+  description = "Email to receive CloudWatch alarm notifications"
+  type        = string
+}

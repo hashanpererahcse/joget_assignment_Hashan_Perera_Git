@@ -1,18 +1,9 @@
-#!/bin/bash
-# install_joget.sh - Installs Joget DX on Amazon Linux 2, configures RDS MySQL, and sets up systemd service.
-# Usage:
-#   sudo ./install_joget.sh --db-host <endpoint> --db-name <name> --db-user <user> [--db-pass <pass>] [--download-url <url>]
-# Example:
-#   sudo ./install_joget.sh --db-host joget-assignment-mysql.xxxxxx.ap-south-1.rds.amazonaws.com --db-name jwdb --db-user jogetadmin
-
 set -euo pipefail
 
-# --- Re-run as root if needed ---
 if [ "${EUID:-$(id -u)}" -ne 0 ]; then
   exec sudo -E bash "$0" "$@"
 fi
 
-# --- Defaults ---
 DOWNLOAD_URL="https://drive.usercontent.google.com/download?id=1sXTRXAXz-i4_szr3fXiJwjAEp0sNfoFr&export=download&confirm=t&uuid=881e9b97-7277-4c3e-8ba6-6df3886f9106"
 INSTALL_DIR="/opt/joget"
 CJ_VER="8.4.0"
@@ -22,7 +13,6 @@ DB_NAME=""
 DB_USER=""
 DB_PASS="${DB_PASS:-}"
 
-# --- Arg parsing ---
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --db-host) DB_HOST="$2"; shift 2;;
@@ -37,7 +27,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# --- Validate required inputs ---
 if [[ -z "$DB_HOST" || -z "$DB_NAME" || -z "$DB_USER" ]]; then
   echo "ERROR: --db-host, --db-name, and --db-user are required."
   exit 1
@@ -80,7 +69,6 @@ fi
 echo "==> Extracting Joget ..."
 tar -xzf joget.tar.gz
 
-# Normalize Tomcat dir name: apache-tomcat-* -> apache-tomcat
 if ls "$INSTALL_DIR" | grep -q "apache-tomcat-"; then
   TDIR=$(ls -d "$INSTALL_DIR"/apache-tomcat-* | head -n1)
   ln -sfn "$TDIR" "$INSTALL_DIR/apache-tomcat"

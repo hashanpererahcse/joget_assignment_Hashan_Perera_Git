@@ -29,7 +29,7 @@ This project is a hybrid cloud proof-of-concept that simulates an on-premise env
 * **Network** : Static IP (`192.168.1.10`), UFW firewall enabled
 * **VPN Concept** : AWS Site-to-Site VPN (simulated)
 
-### `onprem.sh`
+### `onprem.sh (dir: onprem > onprem.sh)`
 
 Automates the setup of Joget Workflow on Ubuntu with MySQL
 
@@ -41,8 +41,10 @@ Automates the setup of Joget Workflow on Ubuntu with MySQL
 
 ##### - *[Steps for the implementation:]()*
 
-- make script executable **chmod +x onprem.sh**
-- then run with **sudo sh onprem.sh**
+- make script executable
+  - **chmod +x onprem.sh**
+- then run with
+  - **sudo sh onprem.sh**
 
 ##### - Nginx Setup:
 
@@ -50,9 +52,7 @@ Automates the setup of Joget Workflow on Ubuntu with MySQL
 
 ---
 
-
-
-## [- AWS Cloud Infrastructure – Key Components -]()
+## [- AWS Cloud Infrastructure -]()
 
 What this deploys
 
@@ -64,7 +64,7 @@ What this deploys
 * Bastion host (public subnet) for SSH access to the private instances
 * Tight security groups (ALB → Web on 80, Bastion → Web on 22; SSH to Bastion only from your IP)
 
-How to deploy
+## [- Deployment -]()
 
 ```
 terraform init
@@ -73,17 +73,54 @@ terraform plan
 terraform apply
 ```
 
-### Test
+* When **apply** terraform promot to enter admin IP SSH run a powershell:
 
-* After apply, grab the `<span>alb_dns_name</span>` output and open `<span>http://<alb_dns_name></span>`.
-* You should see an Apache page that echoes the instance ID and AZ so you can tell the two nodes apart when refreshing.
+  * (Invoke-WebRequest -Uri "https://api.ipify.org").Content + "/32" - will return IP
+* Give a password for the DB
+* key pair (need to create a new keypair from aws > keypair> create key pair > and download the .pem file)) : provide the keypair name when promt
 * SSH to the bastion:
-
-  ```
+* ```
   ssh -i <path-to-private-key.pem> ec2-user@<bastion_public_ip>
+
+  ex : ssh -i C:\Users\xxx\.ssh\joget\joget-key-pem.pem -o "IdentitiesOnly yes" -J ec2-user@3.110.31.167 ec2-user@10.0.11.105
   ```
 
   From the bastion you can reach the private web instances on port 22/80.
+
+**Ansible setup :**
+
+sudo yum update -y
+sudo amazon-linux-extras install -y ansible2 || (sudo yum install -y python3-pip && pip3 install ansible)
+
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+copy your PEM here (SFTP or scp) as ~/.ssh/joget-key.pem
+
+chmod 600 ~/.ssh/joget-key.pem
+mkdir -p ~/ansible && cd ~/ansible
+
+**Make ini file**
+
+cat > inventory.ini <<'INI'
+[web]
+10.0.11.42 # change to actual IP's
+10.0.10.42 # change to actual IP's
+
+[web:vars]
+ansible_user=ec2-user
+ansible_ssh_private_key_file=~/.ssh/joget-key.pem
+ansible_python_interpreter=/usr/bin/python2
+INI
+
+**Testing**
+
+ANSIBLE_HOST_KEY_CHECKING=False ansible -i inventory.ini web -m ping
+ANSIBLE_HOST_KEY_CHECKING=False ansible -i inventory.ini web -b -a "curl -sI http://127.0.0.1/ | head -1; curl -sI http://127.0.0.1/jw/ | head -1"
+
+**Run**
+
+**replace the rds url and db_user and password as required**
+
+ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini joget.yml -e "rds_host=joget-assignment-mysql.cf0cus6e4wim.ap-south-1.rds.amazonaws.com db_name=jwdb db_user=jogetadmin db_pass='#Compaq123'"
 
 ### Teardown
 
@@ -91,39 +128,11 @@ terraform apply
 terraform destroy
 ```
 
-> Note: NAT Gateways are billed by the hour + data. Destroy when done.
+> make sure not to remove statefile from directory before running  : terraform destroy
 
-### Assumptions
+**Terraform State Management :**
 
-* Web servers are in private subnets; ALB and Bastion are public.
-* One NAT Gateway shared by both private subnets (cost-optimized).
-* Amazon Linux 2 AMI.
-
-## [- Deployment -]()
-
-- AWS CLI configured (`aws configure`)
-- Terraform files
-- SSH key pair exists in AWS
-
-After the tf file are vaidated
-
-```bash
-terraform init
-terraform plan
-terraform apply
-```
-
-Destroy
-
-```bash
-terraform destroy
-```
-
----
-
-Terraform State Management :
-
-This PoC uses local backend for Terraform state. In production, this should be moved to a remote backend (e.g., S3 + DynamoDB) with locking and versioning to prevent drift and manage changes securely.
+This PoC uses local backend for Terraform state. In production, this should be moved to a remote backend (eg S3 + DynamoDB) with locking and versioning to prevent drift and manage changes securely.
 
 ---
 
@@ -177,13 +186,11 @@ conn aws-vpn
 * EC2 application servers only accept traffic from the ALB
 * RDS only accepts **MySQL (port 3306)** from EC2 app security group
 * No public access to private subnets or the RDS instance
-* (Optional) Bastion host can be used for admin SSH access, restricted to your IP
+* Bastion host can be used for admin SSH access, restricted to your IP
 
 ## [Hybrid Connectivity Plan]()
 
 - We're simulating a **Site-to-Site VPN** tunnel using **strongSwan** on the on-prem side and an AWS **Virtual Private Gateway** on the cloud side.
-- **Routing**: Static routes
-- All traffic between the on-prem server and AWS VPC is encrypted using  **IPSec** .
 
 ## [Backup and Disaster Recovery]()
 
@@ -205,8 +212,8 @@ conn aws-vpn
 ## [Monitoring and Alerts]()
 
 - **Metrics to watch**:
-  - EC2 CPU Utilization > 80%
-  - RDS Free Storage < 10%
+  - EC2 CPU Utilization
+  - RDS Free Storage
   - ALB returning 5xx errors
 - **Alarms & Alerts**:
   - CloudWatch Alarms
@@ -220,12 +227,11 @@ conn aws-vpn
 
 ## [Assumptions]()
 
-- Cost was prioritized over full redundancy
 - VPN is simulated, not physically deployed
 
 ## [Challenges and Trade-offs]()
 
-- **NAT Gateway** adds cost, but needed for internet access from private subnets
+- Configuration user-data caused little difficult
 
 ## [Future Improvements]()
 
