@@ -26,7 +26,7 @@ This project is a hybrid cloud proof-of-concept that simulates an on-premise env
 
 * **OS** : Ubuntu 22.04 (simulated via local VM)
 * **Services** : Apache2, MySQL, Java App
-* **Network** : Static IP (`192.168.1.10`), UFW firewall enabled
+* **Network** : Static IP (`192.168.1.10` and DHCP for now), UFW firewall enabled
 * **VPN Concept** : AWS Site-to-Site VPN (simulated)
 
 ### `onprem.sh (dir: onprem > onprem.sh)`
@@ -44,7 +44,7 @@ Automates the setup of Joget Workflow on Ubuntu with MySQL
 - make script executable
   - **chmod +x onprem.sh**
 - then run with
-  - **sudo sh onprem.sh**
+  - **sudo bash onprem.sh**
 
 ##### - Nginx Setup:
 
