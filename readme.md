@@ -83,14 +83,24 @@ terraform apply
   ssh -i <path-to-private-key.pem> ec2-user@<bastion_public_ip>
 
   ex : ssh -i C:\Users\xxx\.ssh\joget\joget-key-pem.pem -o "IdentitiesOnly yes" -J ec2-user@3.110.31.167 ec2-user@10.0.11.105
+
+   ssh -i C:\Users\hdp00618\.ssh\joget\joget.pem ec2-user@3.108.196.58
+
+  ``
+
+
   ```
 
   From the bastion you can reach the private web instances on port 22/80.
 
 **Ansible setup :**
 
-sudo yum update -y
-sudo amazon-linux-extras install -y ansible2 || (sudo yum install -y python3-pip && pip3 install ansible)
+sudo yum update -y && \
+  ( sudo amazon-linux-extras enable ansible2 && sudo yum clean metadata && sudo yum install -y ansible ) || \
+  ( sudo amazon-linux-extras install -y epel && sudo yum install -y ansible ) || \
+  ( sudo yum install -y python3 python3-pip && python3 -m pip install --user ansible && echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc )
+
+
 
 mkdir -p ~/.ssh && chmod 700 ~/.ssh
 copy your PEM here (SFTP or scp) as ~/.ssh/joget-key.pem
@@ -114,7 +124,7 @@ INI
 **Testing**
 
 ANSIBLE_HOST_KEY_CHECKING=False ansible -i inventory.ini web -m ping
-ANSIBLE_HOST_KEY_CHECKING=False ansible -i inventory.ini web -b -a "curl -sI http://127.0.0.1/ | head -1; curl -sI http://127.0.0.1/jw/ | head -1"
+
 
 **Run**
 
@@ -122,6 +132,8 @@ ANSIBLE_HOST_KEY_CHECKING=False ansible -i inventory.ini web -b -a "curl -sI htt
 
 ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini joget.yml -e "rds_host=joget-assignment-mysql.cf0cus6e4wim.ap-south-1.rds.amazonaws.com db_name=jwdb db_user=jogetadmin db_pass='#Compaq123'"
 
+
+ANSIBLE_HOST_KEY_CHECKING=False ansible -i inventory.ini web -b -a "curl -sI http://127.0.0.1/ | head -1; curl -sI http://127.0.0.1/jw/ | head -1"
 ### Teardown
 
 ```

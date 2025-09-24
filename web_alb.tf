@@ -7,7 +7,7 @@ resource "aws_launch_template" "web" {
   update_default_version = true
   iam_instance_profile {
   name = aws_iam_instance_profile.web.name
-}
+ }
 
 
   tag_specifications {
