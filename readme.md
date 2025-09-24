@@ -81,17 +81,10 @@ terraform apply
 * SSH to the bastion:
 * ```
   ssh -i <path-to-private-key.pem> ec2-user@<bastion_public_ip>
-
-  ex : ssh -i C:\Users\xxx\.ssh\joget\joget-key-pem.pem -o "IdentitiesOnly yes" -J ec2-user@3.110.31.167 ec2-user@10.0.11.105
-
-   ssh -i C:\Users\hdp00618\.ssh\joget\joget.pem ec2-user@3.108.196.58
-
-  ``
-
-
+  es: ssh -i C:\Users\hdp00618\.ssh\joget\joget.pem ec2-user@3.108.196.58
   ```
 
-  From the bastion you can reach the private web instances on port 22/80.
+  From the bastion you can reach the private web instances on port 22.
 
 **Ansible setup :**
 
@@ -103,21 +96,22 @@ sudo yum update -y && \
 
 
 mkdir -p ~/.ssh && chmod 700 ~/.ssh
+
 copy your PEM here (SFTP or scp) as ~/.ssh/joget-key.pem
 
-chmod 600 ~/.ssh/joget-key.pem
+chmod 600 ~/.ssh/joget.pem
 mkdir -p ~/ansible && cd ~/ansible
 
 **Make ini file**
 
 cat > inventory.ini <<'INI'
 [web]
-10.0.11.42 # change to actual IP's
-10.0.10.42 # change to actual IP's
+10.0.11.250 # change to actual IP's
+10.0.10.165 # change to actual IP's
 
 [web:vars]
 ansible_user=ec2-user
-ansible_ssh_private_key_file=~/.ssh/joget-key.pem
+ansible_ssh_private_key_file=~/.ssh/joget.pem
 ansible_python_interpreter=/usr/bin/python2
 INI
 
